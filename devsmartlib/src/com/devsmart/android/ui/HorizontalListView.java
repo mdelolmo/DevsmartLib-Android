@@ -316,7 +316,7 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 			mOnEdgeReached.onListEdgeReached(0);
 		}
 		if(mNextX >= mMaxX && mOnEdgeReached != null) {
-			mOnEdgeReached.onListEdgeReached(0);
+			mOnEdgeReached.onListEdgeReached(1);
 		}		
 		return true;
 	}

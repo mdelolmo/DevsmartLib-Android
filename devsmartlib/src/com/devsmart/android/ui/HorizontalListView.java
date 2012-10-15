@@ -120,6 +120,7 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 
 	public void setOnListEdgeReachedListener(OnListEdgeReachedListener mOnReachEdgeListener) {
 		this.mOnEdgeReached = mOnReachEdgeListener;
+		mOnReachEdgeListener.onListEdgeReached(-1, true, false);
 	}
 
 	@Override
@@ -281,6 +282,17 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 		}
 	}
 	
+	
+	
+	@Override
+	public int getFirstVisiblePosition() {
+		if (mLeftViewIndex < 0){
+			return 0;
+		}else{
+			return mLeftViewIndex;
+		}
+	}
+
 	private void positionItems(final int dx) {
 		if(getChildCount() > 0){
 			mDisplayOffset += dx;
@@ -312,12 +324,21 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 			mScroller.fling(mNextX, 0, (int)-velocityX, 0, 0, mMaxX, 0, 0);
 		}
 		requestLayout();
-		if(mNextX <= 0 && mOnEdgeReached!= null){
-			mOnEdgeReached.onListEdgeReached(0);
+		boolean firstSeen = getAdapter() == null || this.getFirstVisiblePosition() == 0;
+		boolean lastSeen = getAdapter() == null ||  this.getLastVisiblePosition() == getAdapter().getCount();
+		if ((mNextX <= 0 || mNextX >= mMaxX) && mOnEdgeReached != null){
+			if(mNextX <= 0 && mOnEdgeReached!= null){
+				mOnEdgeReached.onListEdgeReached(0, firstSeen, lastSeen);
+			}
+			if(mNextX >= mMaxX && mOnEdgeReached != null) {
+				mOnEdgeReached.onListEdgeReached(1, firstSeen, lastSeen);
+			}
+		}else{
+			if (mOnEdgeReached != null){
+				// the list has not reached the edge
+				mOnEdgeReached.onListEdgeReached(-1, firstSeen, lastSeen);
+			}
 		}
-		if(mNextX >= mMaxX && mOnEdgeReached != null) {
-			mOnEdgeReached.onListEdgeReached(1);
-		}		
 		return true;
 	}
 	
@@ -336,7 +357,7 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 		 * scrolled to the right most position (last item) or left most position (first item).
 		 * @param edge '0' if the list has reached the left most edge (first item) or '1' if the right most edge (last item)
 		 */
-		public void onListEdgeReached(int edge);
+		public void onListEdgeReached(int edge, boolean firstSeen, boolean lastSeen);
 	}
 	
 	private OnGestureListener mOnGesture = new GestureDetector.SimpleOnGestureListener() {

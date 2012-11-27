@@ -31,6 +31,7 @@ import java.util.LinkedList;
 import java.util.Queue;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.database.DataSetObserver;
 import android.graphics.Rect;
 import android.util.AttributeSet;
@@ -44,10 +45,25 @@ import android.widget.ListAdapter;
 import android.widget.Scroller;
 
 public class HorizontalListView extends AdapterView<ListAdapter> {
+	
+	static class ReqLay implements Runnable {
+		View v;
+		
+		public ReqLay(View v) {
+			super();
+			this.v = v;
+		}
+
+		@Override
+		public void run() {
+			v.requestLayout();
+		}
+	};	
 
 	public boolean mAlwaysOverrideTouch = true;
 	protected ListAdapter mAdapter;
-	private int mLeftViewIndex = -1;
+	private int mFirstItemWidth = -1;
+	private int mLeftViewIndex = 0;
 	private int mRightViewIndex = 0;
 	protected int mCurrentX;
 	protected int mNextX;
@@ -61,10 +77,12 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 	private OnItemLongClickListener mOnItemLongClicked;
 	private OnListEdgeReachedListener mOnEdgeReached;
 	private boolean mDataChanged = false;
+	private final ReqLay rqLy;
 	
 
 	public HorizontalListView(Context context, AttributeSet attrs) {
 		super(context, attrs);
+		rqLy = new ReqLay(this);
 		initView();
 	}
 	
@@ -189,11 +207,9 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 		
 		if(mNextX <= 0){
 			mNextX = 0;
-			mScroller.forceFinished(true);
 		}
 		if(mNextX >= mMaxX) {
 			mNextX = mMaxX;
-			mScroller.forceFinished(true);
 		}
 		
 		int dx = mCurrentX - mNextX;
@@ -205,12 +221,7 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 		mCurrentX = mNextX;
 		
 		if(!mScroller.isFinished()){
-			post(new Runnable(){
-				@Override
-				public void run() {
-					requestLayout();
-				}
-			});
+			post(rqLy);
 			
 		}
 	}
@@ -254,7 +265,11 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 	
 	private void fillListLeft(int leftEdge, final int dx) {
 		while(leftEdge + dx > 0 && mLeftViewIndex >= 0) {
+			
 			View child = mAdapter.getView(mLeftViewIndex, mRemovedViewQueue.poll(), this);
+			if (mLeftViewIndex == 0 && mFirstItemWidth == -1){
+				mFirstItemWidth = child.getWidth();
+			}			
 			addAndMeasureChild(child, 0);
 			leftEdge -= child.getMeasuredWidth();
 			mLeftViewIndex--;
@@ -270,7 +285,6 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 			removeViewInLayout(child);
 			mLeftViewIndex++;
 			child = getChildAt(0);
-			
 		}
 		
 		child = getChildAt(getChildCount()-1);
@@ -279,17 +293,6 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 			removeViewInLayout(child);
 			mRightViewIndex--;
 			child = getChildAt(getChildCount()-1);
-		}
-	}
-	
-	
-	
-	@Override
-	public int getFirstVisiblePosition() {
-		if (mLeftViewIndex < 0){
-			return 0;
-		}else{
-			return mLeftViewIndex;
 		}
 	}
 
@@ -305,7 +308,7 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 			}
 		}
 	}
-	
+
 	public synchronized void scrollTo(int x) {
 		mScroller.startScroll(mNextX, 0, x - mNextX, 0);
 		requestLayout();
@@ -324,7 +327,7 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 			mScroller.fling(mNextX, 0, (int)-velocityX, 0, 0, mMaxX, 0, 0);
 		}
 		requestLayout();
-		boolean firstSeen = getAdapter() == null || this.getFirstVisiblePosition() == 0;
+		boolean firstSeen = getAdapter() == null || mCurrentX <= mFirstItemWidth;
 		boolean lastSeen = getAdapter() == null ||  this.getLastVisiblePosition() == getAdapter().getCount();
 		if ((mNextX <= 0 || mNextX >= mMaxX) && mOnEdgeReached != null){
 			if(mNextX <= 0 && mOnEdgeReached!= null){
@@ -346,7 +349,7 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 		mScroller.forceFinished(true);
 		return true;
 	}
-	
+
 	/**
 	 * Interface for client classes interested on listening the event of the list reaching an edge when
 	 * scrolling.
